@@ -40,26 +40,65 @@ Changes: 1.0 - Initial Script Creation
 #>
 
 
-
 Param(
   [switch]$check_updates,
-  [string]$modname
+  [string]$modname,
+  [string]$modtype
 )
 
 function installed_mods {
 
     $table = @()
 
-    #Path of Mods
-    $path="D:\TEMP\mods"
+    if ($modtype -eq "cars" -or "car") {
 
-    if ($modname -ne "") {
-        #Get only Directory Names specified in the param that contain mod.txt file
-        $files = Get-ChildItem $path -filter "mod.txt" -recurse | where {$_.DirectoryName -like "*$name*"}
+        #Path of car mods
+        $path="D:\TEMP\mods\cars"
+
+    }
+    elseif ($modtype -eq "tracks" -or "track") {
+
+        #Path of track mods
+        $path="D:\TEMP\mods\tracks"
+
     }
     else {
-        #Get all Directory Names that contain mod.txt file
-        $files = Get-ChildItem $path -filter "mod.txt" -recurse
+
+        #Path of car and track mods
+        $path="D:\TEMP\mods\cars"
+        $path2="D:\TEMP\mods\tracks"
+        $searchallmods=1
+
+    }
+
+
+    if ($modname -ne "") {
+
+        if ($searchallmods) {
+
+            #Get only Directory Names specified in the param that contain mod.txt file
+            $files = Get-ChildItem $path, $path2 -filter "mod.txt" -recurse | where {$_.DirectoryName -like "*$name*"}
+
+        }
+        else {
+
+            #Get only Directory Names specified in the param that contain mod.txt file
+            $files = Get-ChildItem $path -filter "mod.txt" -recurse | where {$_.DirectoryName -like "*$name*"}
+
+        }
+    }
+    else {
+        
+        if ($searchallmods) {
+
+            #Get all Directory Names that contain mod.txt file
+            $files = Get-ChildItem $path, $path2 -filter "mod.txt" -recurse
+        }
+        else {
+            #Get all Directory Names that contain mod.txt file
+            $files = Get-ChildItem $path -filter "mod.txt" -recurse
+        }
+
     }
 
     ForEach ($file in $files) {
