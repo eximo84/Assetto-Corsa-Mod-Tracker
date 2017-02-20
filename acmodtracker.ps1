@@ -17,27 +17,27 @@ Checks Race Department URL located in mod.txt file and retrieves the latest vers
 Checks only installed mods with the supplied name
                  
 .EXAMPLE
-./something.ps1
-Locates any mods installed locally and displays the local information
+./something.ps1 -modtype car
+Locates all car mods installed locally and displays the information from the mod.txt file
 
 .EXAMPLE
-./something.ps1 -modname <modname>
-Locates any mods installed with a name similar to that specified, might return more than one entry.  Wildcards already included in the script.
+./something.ps1 -modtype car -modname <modname>
+Locates any car mods installed locally with a name similar to that specified and displays the information from the mod.txt file.  Wildcards already included in the script.
 
 .EXAMPLE
-./something.ps1 -check_updates
-Locates any mods installed locally and displays the local information as well as the latest version and last updated dates from Race Department.
+./something.ps1 -modtype car -check_updates
+Locates all car mods installed locally and displays the information from the mod.txt file as well as retrieving the latest version and last updated dates from Race Department.  The local mod.txt file is updated with the latest information.
 
 .EXAMPLE
-./something.ps1 -modname <modname> -check_updates
-Locates any mods installed with a name similar to that specified as well as the latest version and last updated dates from Race Department.
+./something.ps1 -modtype car -modname <modname> -check_updates
+Locates any mods installed locally with a name similar to that specified and displays the information from the mod.txt file as well as retrieving the latest version and last updated dates from Race Department.  The local mod.txt file is updated with the latest information.
 
 
 .NOTES
-Title: Something 
+Title: Assetto Corsa Mod Tracker 
 Usage: Powershell v5
 Author: Dave Parkinson                              
-Date Modified:        
+Date Modified: 20/02/2017        
 Changes: 1.0 - Initial Script Creation
 
 #>
