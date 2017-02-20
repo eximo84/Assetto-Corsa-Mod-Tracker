@@ -7,6 +7,9 @@ Script looks for a text file called "mod.txt" in the root of the mod folder, the
 The list produced contains information from the local mod.txt file as well as information from the Race Department website if the check_updates parameter is provided.
 All parameters can be supplied in the command line.
 
+.PARAMETER modtype
+MANDITORY, sets the script to look for car or track mods.  Accepted inputs are Car, Cars, Track or Tracks
+
 .PARAMETER check_updates
 Checks Race Department URL located in mod.txt file and retrieves the latest version and last updated date for installed mods
 
@@ -39,69 +42,48 @@ Changes: 1.0 - Initial Script Creation
 
 #>
 
+    Param(
+        [Parameter(Position=0,Mandatory=$true)][string]$modtype,
+        [string]$modname,
+        [switch]$check_updates
+        
+    )
 
-Param(
-  [switch]$check_updates,
-  [string]$modname,
-  [string]$modtype
-)
+
 
 function installed_mods {
 
+
+
     $table = @()
 
-    if ($modtype -eq "cars" -or "car") {
+    if ($modtype -eq "cars" -or $modtype -eq "car") {
 
         #Path of car mods
-        $path="D:\TEMP\mods\cars"
+        $path="F:\SteamLibrary\steamapps\Common\assettocorsa\content\cars"
 
     }
-    elseif ($modtype -eq "tracks" -or "track") {
+    elseif ($modtype -eq "tracks" -or $modtype -eq "track") {
 
         #Path of track mods
-        $path="D:\TEMP\mods\tracks"
-
+        $path="F:\SteamLibrary\steamapps\Common\assettocorsa\content\tracks"
     }
-    else {
-
-        #Path of car and track mods
-        $path="D:\TEMP\mods\cars"
-        $path2="D:\TEMP\mods\tracks"
-        $searchallmods=1
-
-    }
-
 
     if ($modname -ne "") {
 
-        if ($searchallmods) {
+        #Get only Directory Names specified in the param that contain mod.txt file
+        $files = Get-ChildItem $path -filter "mod.txt" -recurse | where {$_.DirectoryName -like "*$modname*"}
 
-            #Get only Directory Names specified in the param that contain mod.txt file
-            $files = Get-ChildItem $path, $path2 -filter "mod.txt" -recurse | where {$_.DirectoryName -like "*$name*"}
-
-        }
-        else {
-
-            #Get only Directory Names specified in the param that contain mod.txt file
-            $files = Get-ChildItem $path -filter "mod.txt" -recurse | where {$_.DirectoryName -like "*$name*"}
-
-        }
     }
     else {
         
-        if ($searchallmods) {
+        #Get all Directory Names that contain mod.txt file
+        $files = Get-ChildItem $path -filter "mod.txt" -recurse
 
-            #Get all Directory Names that contain mod.txt file
-            $files = Get-ChildItem $path, $path2 -filter "mod.txt" -recurse
-        }
-        else {
-            #Get all Directory Names that contain mod.txt file
-            $files = Get-ChildItem $path -filter "mod.txt" -recurse
-        }
 
     }
 
-    ForEach ($file in $files) {
+ForEach ($file in $files) {
 
         $dirname = $file.directory.name
 
@@ -110,43 +92,55 @@ function installed_mods {
         $version = $content[1].trim()
         $comment = $content[3].trim()
 
-        if ($content[6]) {
+        if ($content[6] -like "*racedepartment*") {
             $url = "http:"+$content[6]
         }
         else {
             $url = ""
         }
 
+        $rd_version = $content[8].trim()
+        $rd_last_updated = $content[10].trim()
+        $last_update_check = $content[12].trim()+":"+$content[13]+":"+$content[14]
+
         if ($check_updates) {
 
-            if ($url) {
+            if ($url -ne "") {
                 $webresponse = invoke-webrequest -uri $url
-                $availableversion = ($WebResponse.AllElements | where {$_.TagName -eq "span" -and $_.class -eq "muted"}).innerText[0]
-                $lastupdated = ($WebResponse.AllElements | where {$_.TagName -eq "dl" -and $_.class -eq "lastUpdate"}).innerText.substring(12)
+                $rd_version = ($WebResponse.AllElements | where {$_.TagName -eq "span" -and $_.class -eq "muted"}).innerText[0]
+                $rd_last_updated = ($WebResponse.AllElements | where {$_.TagName -eq "dl" -and $_.class -eq "lastUpdate"}).innerText.substring(12)
+                $last_update_check = Get-Date
             }
+            
+        }
 
-        }
-        else {
-            $webresponse = ""
-            $availableversion = ""
-            $lastupdated = ""
-        }
 
         $hash = New-Object PSObject
         $hash | Add-Member -Type NoteProperty -name "Name" -Value $dirname
         $hash | Add-Member -Type NoteProperty -name "Local Version" -Value $version
         $hash | Add-Member -Type NoteProperty -name "Comment" -Value $comment
         $hash | Add-Member -Type NoteProperty -name "RD URL" -Value $url
-        $hash | Add-Member -Type NoteProperty -name "RD Version" -Value $availableversion
-        $hash | Add-Member -Type NoteProperty -name "RD Last Updated" -Value $lastupdated
+        $hash | Add-Member -Type NoteProperty -name "RD Version" -Value $rd_version
+        $hash | Add-Member -Type NoteProperty -name "RD Last Updated" -Value $rd_last_updated
+        $hash | Add-Member -Type NoteProperty -name "Last Update Check" -Value $last_update_check
 
+        $hash_to_mod_file=@(
+        "version: $version"
+        "comment: $comment"
+        "url: $url"
+        "RD Version: $rd_version"
+        "RD Last Updated: $rd_last_updated"
+        "Last Update Check: $last_update_check") | Out-File $path\$dirname\$file
+        
         $table += $hash
 
         $version = ""
         $comment = ""
         $webresponse = ""
-        $availableversion = ""
-        $lastupdated = ""
+        $url = ""
+        $rd_version = ""
+        $rd_last_updated = ""
+        $last_update_check = ""
 
                     
     }
