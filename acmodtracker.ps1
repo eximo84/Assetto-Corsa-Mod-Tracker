@@ -42,37 +42,32 @@ Changes: 1.0 - Initial Script Creation
 
 #>
 
+function Get-ACMod {
+
     Param(
-        [Parameter(Position=0,Mandatory=$true)][string]$modtype,
-        [string]$modname,
-        [switch]$check_updates
-        
+        [Parameter(Position=0,Mandatory=$true)][string]$type,
+        [string]$name,
+        [switch]$check_updates   
     )
-
-
-
-function installed_mods {
-
-
 
     $table = @()
 
-    if ($modtype -eq "cars" -or $modtype -eq "car") {
+    if ($type -eq "cars" -or $type -eq "car") {
 
         #Path of car mods
         $path="F:\SteamLibrary\steamapps\Common\assettocorsa\content\cars"
 
     }
-    elseif ($modtype -eq "tracks" -or $modtype -eq "track") {
+    elseif ($type -eq "tracks" -or $type -eq "track") {
 
         #Path of track mods
         $path="F:\SteamLibrary\steamapps\Common\assettocorsa\content\tracks"
     }
 
-    if ($modname -ne "") {
+    if ($name -ne "") {
 
         #Get only Directory Names specified in the param that contain mod.txt file
-        $files = Get-ChildItem $path -filter "mod.txt" -recurse | where {$_.DirectoryName -like "*$modname*"}
+        $files = Get-ChildItem $path -filter "mod.txt" -recurse | where {$_.DirectoryName -like "*$name*"}
 
     }
     else {
@@ -87,21 +82,21 @@ ForEach ($file in $files) {
 
         $dirname = $file.directory.name
 
-        $content = (Get-Content -path $path\$dirname\$file).split(":")
+        $content = (Get-Content -path $path\$dirname\$file).split("=")
 
         $version = $content[1].trim()
         $comment = $content[3].trim()
 
-        if ($content[6] -like "*racedepartment*") {
-            $url = "http:"+$content[6]
+        if ($content[5] -like "*racedepartment*") {
+            $url = $content[5].trim()
         }
         else {
             $url = ""
         }
 
-        $rd_version = $content[8].trim()
-        $rd_last_updated = $content[10].trim()
-        $last_update_check = $content[12].trim()+":"+$content[13]+":"+$content[14]
+        $rd_version = $content[7].trim()
+        $rd_last_updated = $content[9].trim()
+        $last_update_check = $content[11].trim()
 
         if ($check_updates) {
 
@@ -114,23 +109,34 @@ ForEach ($file in $files) {
             
         }
 
+        if ($version -ne $rd_version) {
+
+            $version_mismatch = $true
+
+        }
+        else {
+
+            $version_mismatch = $false
+        }
+
 
         $hash = New-Object PSObject
         $hash | Add-Member -Type NoteProperty -name "Name" -Value $dirname
         $hash | Add-Member -Type NoteProperty -name "Local Version" -Value $version
+        $hash | Add-Member -Type NoteProperty -name "RD Version" -Value $rd_version
+        $hash | Add-Member -Type NoteProperty -name "Version Mismatch" -Value $version_mismatch
+        $hash | Add-Member -Type NoteProperty -name "RD Last Updated" -Value $rd_last_updated 
         $hash | Add-Member -Type NoteProperty -name "Comment" -Value $comment
         $hash | Add-Member -Type NoteProperty -name "RD URL" -Value $url
-        $hash | Add-Member -Type NoteProperty -name "RD Version" -Value $rd_version
-        $hash | Add-Member -Type NoteProperty -name "RD Last Updated" -Value $rd_last_updated
         $hash | Add-Member -Type NoteProperty -name "Last Update Check" -Value $last_update_check
 
         $hash_to_mod_file=@(
-        "version: $version"
-        "comment: $comment"
-        "url: $url"
-        "RD Version: $rd_version"
-        "RD Last Updated: $rd_last_updated"
-        "Last Update Check: $last_update_check") | Out-File $path\$dirname\$file
+        "version=$version"
+        "comment=$comment"
+        "url=$url"
+        "RD Version=$rd_version"
+        "RD Last Updated=$rd_last_updated"
+        "Last Update Check=$last_update_check") | Out-File $path\$dirname\$file
         
         $table += $hash
 
@@ -146,8 +152,26 @@ ForEach ($file in $files) {
     }
 
     $table | ft -AutoSize
+    $table | Export-Csv .\AC-Mods-Export.csv -notype
     
 }
 
+function New-ACMod {
 
-installed_mods
+    Param(
+        [Parameter(Position=0,Mandatory=$true)][string]$path,
+        [string]$version,
+        [string]$comment,
+        [string]$url       
+            
+    )
+
+    $new_mod_file=@(
+    "version=$version"
+    "comment=$comment"
+    "url=$url"
+    "RD Version="
+    "RD Last Updated="
+    "Last Update Check=") | Out-File $path\mod.txt
+
+}
