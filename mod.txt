@@ -1,6 +1,6 @@
-version: 
-comment: 
-url: 
-RD Version: 
-RD Last Updated: 
-Last Update Check: 
+version=
+comment=
+url=
+RD Version=
+RD Last Updated=
+Last Update Check=
