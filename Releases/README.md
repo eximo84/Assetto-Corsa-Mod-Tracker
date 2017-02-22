@@ -3,6 +3,7 @@
 Current latest release is version 0.6
 
 ----
+0.6.1 - bug fix #17
 
 0.6 - Added 1 hour limit to checking Race Department website, shows local mod.txt informaiton if last checked date is less than 1 hour from the current date.  New param -override_check_limit to override this 1 hour limit.
 
