@@ -38,16 +38,23 @@ Title: Assetto Corsa Mod Tracker
 Usage: Powershell v5
 Author: Dave Parkinson                              
 Date Modified: 20/02/2017        
-Changes: 1.0 - Initial Script Creation
+Changes: 0.1 - Initial Script Creation - Looks for mod.txt file in specified folder and shows output in a table
+         0.2 - Script scrapes RD URL for Version and Last Updated date, scraped data added to table output
+         0.3 - Moved script into a function called Get-ACMod, created initial parameters
+         0.4 - Created New-ACMod function, this creates mod.txt folder in specified directory
 
 #>
+
+$ac_install_path="D:\TEMP\ac"
+
 
 function Get-ACMod {
 
     Param(
         [Parameter(Position=0,Mandatory=$true)][string]$type,
         [string]$name,
-        [switch]$check_updates   
+        [switch]$check_updates,
+        [switch]$export   
     )
 
     $table = @()
@@ -55,26 +62,25 @@ function Get-ACMod {
     if ($type -eq "cars" -or $type -eq "car") {
 
         #Path of car mods
-        $path="F:\SteamLibrary\steamapps\Common\assettocorsa\content\cars"
+        $contentpath="$ac_install_path\cars"
 
     }
     elseif ($type -eq "tracks" -or $type -eq "track") {
 
         #Path of track mods
-        $path="F:\SteamLibrary\steamapps\Common\assettocorsa\content\tracks"
+        $contentpath="$ac_install_path\tracks"
     }
 
     if ($name -ne "") {
 
         #Get only Directory Names specified in the param that contain mod.txt file
-        $files = Get-ChildItem $path -filter "mod.txt" -recurse | where {$_.DirectoryName -like "*$name*"}
+        $files = Get-ChildItem $contentpath -filter "mod.txt" -recurse | where {$_.DirectoryName -like "*$name*"}
 
     }
     else {
         
         #Get all Directory Names that contain mod.txt file
-        $files = Get-ChildItem $path -filter "mod.txt" -recurse
-
+        $files = Get-ChildItem $contentpath -filter "mod.txt" -recurse
 
     }
 
@@ -82,7 +88,7 @@ ForEach ($file in $files) {
 
         $dirname = $file.directory.name
 
-        $content = (Get-Content -path $path\$dirname\$file).split("=")
+        $content = (Get-Content -path $contentpath\$dirname\$file).split("=")
 
         $version = $content[1].trim()
         $comment = $content[3].trim()
@@ -136,7 +142,7 @@ ForEach ($file in $files) {
         "url=$url"
         "RD Version=$rd_version"
         "RD Last Updated=$rd_last_updated"
-        "Last Update Check=$last_update_check") | Out-File $path\$dirname\$file
+        "Last Update Check=$last_update_check") | Out-File $contentpath\$dirname\$file
         
         $table += $hash
 
@@ -151,27 +157,73 @@ ForEach ($file in $files) {
                     
     }
 
-    $table | ft -AutoSize
-    $table | Export-Csv .\AC-Mods-Export.csv -notype
+    #$table | ft -AutoSize
+
+    $table | Out-GridView -Title "Assetto Corsa $type Mods"
+
+    if ($export -eq $true) {
+        $table | Export-Csv .\AC-Mods-Export.csv -notype
+    }
     
 }
 
 function New-ACMod {
 
     Param(
-        [Parameter(Position=0,Mandatory=$true)][string]$path,
-        [string]$version,
-        [string]$comment,
-        [string]$url       
-            
+        [Parameter(Position=0,Mandatory=$true)][string]$type,
+        [Parameter(Position=1,Mandatory=$true)][string]$name,
+        [Parameter()][string]$version,
+        [Parameter()][string]$comment,
+        [Parameter()][string]$url                
     )
 
-    $new_mod_file=@(
-    "version=$version"
-    "comment=$comment"
-    "url=$url"
-    "RD Version="
-    "RD Last Updated="
-    "Last Update Check=") | Out-File $path\mod.txt
+    if ($type -eq "cars" -or $type -eq "car") {
+
+        #Path of car mods
+        $contentpath="$ac_install_path\cars"
+
+    }
+    elseif ($type -eq "tracks" -or $type -eq "track") {
+
+        #Path of track mods
+        $contentpath="$ac_install_path\tracks"
+    }
+
+
+    #Get only Directory Names specified in the param that contain mod.txt file
+    $directories = Get-ChildItem $contentpath -Directory | where {$_.Name -like "*$name*"}
+   
+    
+    if ($directories.count -lt 1) {
+    
+        write-host "Unable to find any directories with the name $name"
+    
+    }
+    elseif ($directories.count -eq 1) {
+
+        $title = 'Create Mod File'
+        $prompt = 'Found directory called ' + $directories.Name +' ,do you want to create mod.txt file here, [Y]es or [N]o?'
+        $promptyes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes','Creates the mod.txt'
+        $promptno = New-Object System.Management.Automation.Host.ChoiceDescription '&No','Doesnt create mod.txt'
+        $options = [System.Management.Automation.Host.ChoiceDescription[]] ($promptyes,$promptno)
+        $choice = $host.ui.PromptForChoice($title,$prompt,$options,0)
+
+    }
+    elseif ($directories.count -gt 1) {
+
+        write-host "Found more than one directory with the name $name"
+
+    }
+
+    if ($choice -eq 0) {
+
+        $new_mod_file=@(
+        "version=$version"
+        "comment=$comment"
+        "url=$url"
+        "RD Version="
+        "RD Last Updated="
+        "Last Update Check=") | Out-File $directories\mod.txt
+    }
 
 }
