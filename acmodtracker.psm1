@@ -44,6 +44,7 @@ Changes: 0.1 - Initial Script Creation - Looks for mod.txt file in specified fol
          0.4 - Created New-ACMod function, this creates mod.txt folder in specified directory
          0.5 - New Params for better usability of the script, error handling on mod.txt file being invalid.  Output default to grid window, this looks better.  Option to export to csv via param.
          0.5.1 - Added $export_path variable, this is used when exporting the file to csv.  Can be set by user at a global level.
+         0.6 - Added 1 hour limit to checking Race Department website, shows local mod.txt informaiton if last checked date is less than 1 hour from the current date.  New param -override_check_limit to override this 1 hour limit.
 
 #>
 
@@ -63,8 +64,9 @@ function Get-ACMod {
         [Parameter(ParameterSetName='trackall',Mandatory=$true,Position=1)][Parameter(ParameterSetName='carall',Mandatory=$true,Position=1)][switch]$all,
         [Parameter(ParameterSetName='trackname',Mandatory=$true,Position=1)][Parameter(ParameterSetName='carname',Mandatory=$true,Position=1)][string]$name,
         [Parameter(ParameterSetName='trackall')][Parameter(ParameterSetName='carall')][Parameter(ParameterSetName='trackname')][Parameter(ParameterSetName='carname')][switch]$check_updates,
-        [Parameter(ParameterSetName='trackall')][Parameter(ParameterSetName='carall')][Parameter(ParameterSetName='trackname')][Parameter(ParameterSetName='carname')][switch]$export       
-  
+        [Parameter(ParameterSetName='trackall')][Parameter(ParameterSetName='carall')][Parameter(ParameterSetName='trackname')][Parameter(ParameterSetName='carname')][switch]$override_check_limit,
+        [Parameter(ParameterSetName='trackall')][Parameter(ParameterSetName='carall')][Parameter(ParameterSetName='trackname')][Parameter(ParameterSetName='carname')][switch]$export      
+
     )
 
     $table = @()
@@ -128,22 +130,31 @@ ForEach ($file in $files) {
         }
         catch {
         
-            write-host `n"Invalid mod.txt found in directory $contentpath\$dirname" -ForegroundColor Red
+            write-host `n"Invalid $modtype mod.txt found in mod directory $contentpath\$dirname, no information will be shown for this mod." -ForegroundColor Red
             break
 
         }
 
         if ($check_updates) {
 
-            if ($url -ne "") {
+            if (([datetime]$last_update_check -lt (get-date).AddHours(-1)) -or ($override_check_limit -eq $true)) {
 
-                $webresponse = invoke-webrequest -uri $url
-                $rd_version = ($WebResponse.AllElements | where {$_.TagName -eq "span" -and $_.class -eq "muted"}).innerText[0]
-                $rd_last_updated = ($WebResponse.AllElements | where {$_.TagName -eq "dl" -and $_.class -eq "lastUpdate"}).innerText.substring(12)
-                $last_update_check = Get-Date
+                if ($url -ne "") {
+
+                    $webresponse = invoke-webrequest -uri $url
+                    $rd_version = ($WebResponse.AllElements | where {$_.TagName -eq "span" -and $_.class -eq "muted"}).innerText[0]
+                    $rd_last_updated = ($WebResponse.AllElements | where {$_.TagName -eq "dl" -and $_.class -eq "lastUpdate"}).innerText.substring(12)
+                    $last_update_check = Get-Date
+
+                }
 
             }
-            
+            else {
+
+                write-host `n"Last Update Check for $modtype mod $dirname was at $last_update_check, this is less than the 1 hour limit. Displaying local mod.txt information for this mod, to force an update from Race Department use -override_check_limit parameter." -ForegroundColor Yellow
+
+            }
+                        
         }
 
         if ($version -ne $rd_version) {
@@ -212,14 +223,14 @@ function New-ACMod {
                
     )
 
-    if ($tracks -eq $true) {
+    if ($track -eq $true) {
 
         #Path of track mods
         $contentpath="$ac_install_path\tracks"
 
     }
     
-    if ($cars -eq $true) {
+    if ($car -eq $true) {
 
         #Path of car mods
         $contentpath="$ac_install_path\cars"
@@ -231,7 +242,10 @@ function New-ACMod {
    
     if ($directories.count -lt 1) {
     
-        write-host "Unable to find any directories with the name $name"
+        write-host `n"Unable to find any directories with the name $name"
+
+        $directories.Name
+
     
     }
     elseif ($directories.count -eq 1) {
@@ -246,7 +260,7 @@ function New-ACMod {
     }
     elseif ($directories.count -gt 1) {
 
-        write-host "Found more than one directory with the name $name"`n
+        write-host `n"Found more than one directory with the name $name"
 
         $directories.Name
 
