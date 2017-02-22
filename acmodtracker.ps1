@@ -43,10 +43,16 @@ Changes: 0.1 - Initial Script Creation - Looks for mod.txt file in specified fol
          0.3 - Moved script into a function called Get-ACMod, created initial parameters
          0.4 - Created New-ACMod function, this creates mod.txt folder in specified directory
          0.5 - New Params for better usability of the script, error handling on mod.txt file being invalid.  Output default to grid window, this looks better.  Option to export to csv via param.
+         0.5.1 - Added $export_path variable, this is used when exporting the file to csv.  Can be set by user at a global level.
 
 #>
 
+
+#Set this to your Assetto Corsa installation path
 $ac_install_path="D:\TEMP\ac"
+
+#Set this to your desired output location, default is my documents
+$export_path="D:\TEMP"
 
 function Get-ACMod {
 
@@ -122,7 +128,7 @@ ForEach ($file in $files) {
         }
         catch {
         
-            write-host "Invalid mod.txt found in directory $contentpath\$dirname" -ForegroundColor Red
+            write-host `n"Invalid mod.txt found in directory $contentpath\$dirname" -ForegroundColor Red
             break
 
         }
@@ -186,7 +192,8 @@ ForEach ($file in $files) {
 
     if ($export -eq $true) {
 
-        $table | Export-Csv .\AC-Mods-Export.csv -notype
+        $table | Export-Csv $export_path\AC-Mods-Export.csv -notype
+        write-host `n"Exported values to $export_path\AC-Mods-Export.csv" -ForegroundColor Green
 
     }
     
