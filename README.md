@@ -8,7 +8,7 @@ Current Release Version: 0.6
 
 **Installation**
 
- 1. Download latest version of module
+ 1. Download latest version of module from the releases directory
  2. Find your PowerShell module directory - this is normally in your documents folder > WindowsPowerShell\Modules.  However you can find this by opening PowerShell and entering:
 
  `$Env:PSModulePath`
