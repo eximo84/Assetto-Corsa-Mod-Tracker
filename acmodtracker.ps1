@@ -37,38 +37,45 @@ Locates any mods installed locally with a name similar to that specified and dis
 Title: Assetto Corsa Mod Tracker 
 Usage: Powershell v5
 Author: Dave Parkinson                              
-Date Modified: 20/02/2017        
+Date Modified: 22/02/2017        
 Changes: 0.1 - Initial Script Creation - Looks for mod.txt file in specified folder and shows output in a table
          0.2 - Script scrapes RD URL for Version and Last Updated date, scraped data added to table output
          0.3 - Moved script into a function called Get-ACMod, created initial parameters
          0.4 - Created New-ACMod function, this creates mod.txt folder in specified directory
+         0.5 - New Params for better usability of the script, error handling on mod.txt file being invalid.  Output default to grid window, this looks better.  Option to export to csv via param.
 
 #>
 
 $ac_install_path="D:\TEMP\ac"
 
-
 function Get-ACMod {
 
     Param(
-        [Parameter(Position=0,Mandatory=$true)][string]$type,
-        [string]$name,
-        [switch]$check_updates,
-        [switch]$export   
+
+        [Parameter(ParameterSetName='trackall',Mandatory=$true,Position=0)][Parameter(ParameterSetName='trackname',Mandatory=$true,Position=0)][switch]$track,
+        [Parameter(ParameterSetName='carall',Mandatory=$true,Position=0)][Parameter(ParameterSetName='carname',Mandatory=$true,Position=0)][switch]$car,
+        [Parameter(ParameterSetName='trackall',Mandatory=$true,Position=1)][Parameter(ParameterSetName='carall',Mandatory=$true,Position=1)][switch]$all,
+        [Parameter(ParameterSetName='trackname',Mandatory=$true,Position=1)][Parameter(ParameterSetName='carname',Mandatory=$true,Position=1)][string]$name,
+        [Parameter(ParameterSetName='trackall')][Parameter(ParameterSetName='carall')][Parameter(ParameterSetName='trackname')][Parameter(ParameterSetName='carname')][switch]$check_updates,
+        [Parameter(ParameterSetName='trackall')][Parameter(ParameterSetName='carall')][Parameter(ParameterSetName='trackname')][Parameter(ParameterSetName='carname')][switch]$export       
+  
     )
 
     $table = @()
 
-    if ($type -eq "cars" -or $type -eq "car") {
-
-        #Path of car mods
-        $contentpath="$ac_install_path\cars"
-
-    }
-    elseif ($type -eq "tracks" -or $type -eq "track") {
+    if ($track -eq $true) {
 
         #Path of track mods
         $contentpath="$ac_install_path\tracks"
+        $modtype="Track"
+
+    }
+    
+    if ($car -eq $true) {
+
+        #Path of car mods
+        $contentpath="$ac_install_path\cars"
+        $modtype="Car"
     }
 
     if ($name -ne "") {
@@ -77,7 +84,8 @@ function Get-ACMod {
         $files = Get-ChildItem $contentpath -filter "mod.txt" -recurse | where {$_.DirectoryName -like "*$name*"}
 
     }
-    else {
+
+    if ($all -eq $true) {
         
         #Get all Directory Names that contain mod.txt file
         $files = Get-ChildItem $contentpath -filter "mod.txt" -recurse
@@ -90,27 +98,44 @@ ForEach ($file in $files) {
 
         $content = (Get-Content -path $contentpath\$dirname\$file).split("=")
 
-        $version = $content[1].trim()
-        $comment = $content[3].trim()
 
-        if ($content[5] -like "*racedepartment*") {
-            $url = $content[5].trim()
-        }
-        else {
-            $url = ""
-        }
+        try {
 
-        $rd_version = $content[7].trim()
-        $rd_last_updated = $content[9].trim()
-        $last_update_check = $content[11].trim()
+            $version = $content[1].trim()
+            $comment = $content[3].trim()
+
+            if ($content[5] -like "*racedepartment*") {
+
+                $url = $content[5].trim()
+
+            }
+            else {
+
+                $url = ""
+
+            }
+
+            $rd_version = $content[7].trim()
+            $rd_last_updated = $content[9].trim()
+            $last_update_check = $content[11].trim()
+
+        }
+        catch {
+        
+            write-host "Invalid mod.txt found in directory $contentpath\$dirname" -ForegroundColor Red
+            break
+
+        }
 
         if ($check_updates) {
 
             if ($url -ne "") {
+
                 $webresponse = invoke-webrequest -uri $url
                 $rd_version = ($WebResponse.AllElements | where {$_.TagName -eq "span" -and $_.class -eq "muted"}).innerText[0]
                 $rd_last_updated = ($WebResponse.AllElements | where {$_.TagName -eq "dl" -and $_.class -eq "lastUpdate"}).innerText.substring(12)
                 $last_update_check = Get-Date
+
             }
             
         }
@@ -157,12 +182,12 @@ ForEach ($file in $files) {
                     
     }
 
-    #$table | ft -AutoSize
-
-    $table | Out-GridView -Title "Assetto Corsa $type Mods"
+    $table | Out-GridView -Title "Assetto Corsa $modtype Mods"
 
     if ($export -eq $true) {
+
         $table | Export-Csv .\AC-Mods-Export.csv -notype
+
     }
     
 }
@@ -170,30 +195,33 @@ ForEach ($file in $files) {
 function New-ACMod {
 
     Param(
-        [Parameter(Position=0,Mandatory=$true)][string]$type,
-        [Parameter(Position=1,Mandatory=$true)][string]$name,
-        [Parameter()][string]$version,
-        [Parameter()][string]$comment,
-        [Parameter()][string]$url                
+
+        [Parameter(ParameterSetName='track',Mandatory=$true,Position=0)][switch]$track,
+        [Parameter(ParameterSetName='car',Mandatory=$true,Position=0)][switch]$car,
+        [Parameter(ParameterSetName='track',Mandatory=$true,Position=1)][Parameter(ParameterSetName='car',Mandatory=$true,Position=1)][string]$name,
+        [Parameter(ParameterSetName='track')][Parameter(ParameterSetName='car')][string]$version,
+        [Parameter(ParameterSetName='track')][Parameter(ParameterSetName='car')][string]$comment,
+        [Parameter(ParameterSetName='track')][Parameter(ParameterSetName='car')][string][string]$url
+               
     )
 
-    if ($type -eq "cars" -or $type -eq "car") {
-
-        #Path of car mods
-        $contentpath="$ac_install_path\cars"
-
-    }
-    elseif ($type -eq "tracks" -or $type -eq "track") {
+    if ($tracks -eq $true) {
 
         #Path of track mods
         $contentpath="$ac_install_path\tracks"
+
+    }
+    
+    if ($cars -eq $true) {
+
+        #Path of car mods
+        $contentpath="$ac_install_path\cars"
     }
 
 
     #Get only Directory Names specified in the param that contain mod.txt file
     $directories = Get-ChildItem $contentpath -Directory | where {$_.Name -like "*$name*"}
    
-    
     if ($directories.count -lt 1) {
     
         write-host "Unable to find any directories with the name $name"
@@ -202,7 +230,7 @@ function New-ACMod {
     elseif ($directories.count -eq 1) {
 
         $title = 'Create Mod File'
-        $prompt = 'Found directory called ' + $directories.Name +' ,do you want to create mod.txt file here, [Y]es or [N]o?'
+        $prompt = 'Found directory called ' + $directories.Name +', do you want to create mod.txt file here, [Y]es or [N]o?'
         $promptyes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes','Creates the mod.txt'
         $promptno = New-Object System.Management.Automation.Host.ChoiceDescription '&No','Doesnt create mod.txt'
         $options = [System.Management.Automation.Host.ChoiceDescription[]] ($promptyes,$promptno)
@@ -211,9 +239,12 @@ function New-ACMod {
     }
     elseif ($directories.count -gt 1) {
 
-        write-host "Found more than one directory with the name $name"
+        write-host "Found more than one directory with the name $name"`n
+
+        $directories.Name
 
     }
+
 
     if ($choice -eq 0) {
 
@@ -224,6 +255,7 @@ function New-ACMod {
         "RD Version="
         "RD Last Updated="
         "Last Update Check=") | Out-File $directories\mod.txt
+
     }
 
 }
