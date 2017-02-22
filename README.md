@@ -25,11 +25,16 @@ PowerShell Module to output the current version of Track and Car mods installed 
 
 The module works by looking inside your Assetto Corsa Tracks or Cars folders for a file called mod.txt.  This txt file is a custom file that must be manually created to allow the module to track the mod.   As an example the mod.txt file contains the following information:
 
-> version=0.4 
+> version=0.4
+
 > comment=
-> url=http://www.racedepartment.com/downloads/pacific-coast.12087/ 
+
+> url=http://www.racedepartment.com/downloads/pacific-coast.12087/
+
 > RD Version=0.699a
+
 > RD Last Updated=Sunday at 17:49 
+
 > Last Update Check=02/22/2017 13:19:34
 
 Included in the module is a function to create the mod.txt file, however you will still need to collect and pass the relevant information for the version you have installed and the Race Department URL to enable full tracking.  You can also add comments to the mod.txt file to help you know more about the mod e.g. "No sound in version 0.9"
