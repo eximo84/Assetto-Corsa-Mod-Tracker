@@ -1,6 +1,6 @@
 #Release Change Log
 
-Current latest release is version 0.6
+Current latest release is version 0.7
 
 ----
 0.7 - Created Set-ACMod function, this updates existing mod.txt files.  New-ACmod function only creates mod.txt files if they dont already exist.  Created helper functions for repeated tasks.  Added some error handling around reading the existing mod.txt files.
