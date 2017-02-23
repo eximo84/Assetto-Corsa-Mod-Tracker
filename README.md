@@ -122,3 +122,35 @@ Create a mod.txt for a car mod called Ginetta G55 GT4:
 Create a mod.txt for a track mod called Thruxton (but cant remember the directory name):
 
 `New-ACMod -track -name "Thrux" -url  "http://www.racedepartment.com/downloads/thruxton.6192/"`
+
+----------
+
+**Set-ACMod**
+
+The Set-ACMod function allows you to update the mod.txt file for individual mods that you have installed.
+
+To see the correct function syntax type the following command into your PowerShell window: 
+
+ `Get-Help New-ACMod`
+
+The output will show you the available syntax that makes up this function.   The function contains two mandatory switches to determine if you are editing a mod.txt for Track or Car mods as well as the name of the mod.
+
+The function will only run if a mod.txt file is found in the mod directory.  When entering a name try and use the name of the mod as the correct directory name e.g. "GINETTA G55 GT4", however if you cant remember you can enter a something similar e.g. "GINNETA" and the function will try and find the mod directory for you. 
+
+If the function finds more than one directory with the name specified it will output the list of the directories found and ask you to run the command again with the full directory name of the mod. 
+
+The function will always ask if you want to edit the mod.txt file before it does to verify you updating the correct values.
+
+The values for Current Version, Race Department URL and Comment can be updated, if any of these values are given the function will update just that value, if nothing is given the function will not update anything.
+
+Be careful with this function, you can easily pass an incorrect URL into the mod.txt file which inadvertently break other functons. 
+
+*Example Commands:*
+
+Edit a mod.txt for a car mod called Ginetta G55 GT4 updating the version and comment:
+
+ `Set-ACMod -car -name "GINETTA G55 GT4" -version 1.0 -comment "Mod works fine"`
+
+Edit a mod.txt for a track mod called Thruxton (but cant remember the directory name) updating the version:
+
+`Set-ACMod -track -name "Thrux" -version 2.0`
