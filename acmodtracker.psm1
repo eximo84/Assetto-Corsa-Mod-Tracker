@@ -7,31 +7,7 @@ Script looks for a text file called "mod.txt" in the root of the mod folder, the
 The list produced contains information from the local mod.txt file as well as information from the Race Department website if the check_updates parameter is provided.
 All parameters can be supplied in the command line.
 
-.PARAMETER modtype
-MANDITORY, sets the script to look for car or track mods.  Accepted inputs are Car, Cars, Track or Tracks
-
-.PARAMETER check_updates
-Checks Race Department URL located in mod.txt file and retrieves the latest version and last updated date for installed mods
-
-.PARAMETER modname
-Checks only installed mods with the supplied name
-                 
-.EXAMPLE
-./something.ps1 -modtype car
-Locates all car mods installed locally and displays the information from the mod.txt file
-
-.EXAMPLE
-./something.ps1 -modtype car -modname <modname>
-Locates any car mods installed locally with a name similar to that specified and displays the information from the mod.txt file.  Wildcards already included in the script.
-
-.EXAMPLE
-./something.ps1 -modtype car -check_updates
-Locates all car mods installed locally and displays the information from the mod.txt file as well as retrieving the latest version and last updated dates from Race Department.  The local mod.txt file is updated with the latest information.
-
-.EXAMPLE
-./something.ps1 -modtype car -modname <modname> -check_updates
-Locates any mods installed locally with a name similar to that specified and displays the information from the mod.txt file as well as retrieving the latest version and last updated dates from Race Department.  The local mod.txt file is updated with the latest information.
-
+For more information and examples see: https://github.com/eximo84/Assetto-Corsa-Mod-Tracker
 
 .NOTES
 Title: Assetto Corsa Mod Tracker 
@@ -46,16 +22,68 @@ Changes: 0.1 - Initial Script Creation - Looks for mod.txt file in specified fol
          0.5.1 - Added $export_path variable, this is used when exporting the file to csv.  Can be set by user at a global level.
          0.6 - Added 1 hour limit to checking Race Department website, shows local mod.txt informaiton if last checked date is less than 1 hour from the current date.  New param -override_check_limit to override this 1 hour limit.
          0.6.1 - Bugfix #17 - Content Path incorrect
-
+         0.7 - Created Set-ACMod function, this updates existing mod.txt files.  New-ACmod function only creates mod.txt files if they dont already exist.  Created helper functions for repeated tasks.  Added some error handling around reading the existing mod.txt files.
 #>
 
 
 #Set this to your Assetto Corsa installation path
-$ac_install_path="F:\SteamLibrary\steamapps\Common\assettocorsa"
+$ac_install_path=""
 
 #Set this to your desired output location, default is my documents
 $export_path="$env:USERPROFILE\Documents"
 
+#helper functions
+function install_path_validation {
+
+    if ($ac_install_path -eq "") {
+
+        write-host `n"Assetto Corsa install path not configured in module, please close PowerShell and fix this error before importing the module" -ForegroundColor Red
+        break
+
+    }
+
+}
+
+function content_track {
+
+    #Path of track mods
+    $global:contentpath="$ac_install_path\content\tracks"
+    $global:modtype="Track"
+
+}
+
+function content_car {
+
+    #Path of car mods
+    $global:contentpath="$ac_install_path\content\cars"
+    $global:modtype="Car"
+
+}
+
+function output_modfile {
+
+    try {
+
+        $hash_to_mod_file=@(
+        "version=$version"
+        "comment=$comment"
+        "url=$url"
+        "RD Version=$rd_version"
+        "RD Last Updated=$rd_last_updated"
+        "Last Update Check=$last_update_check") | Out-File $contentpath\$dirname\$file
+
+    }
+    catch {
+
+        write-host "error outputting data into file"
+
+    }
+
+}
+
+################################
+
+#main functions
 function Get-ACMod {
 
     Param(
@@ -70,21 +98,20 @@ function Get-ACMod {
 
     )
 
+    install_path_validation
+
     $table = @()
 
     if ($track -eq $true) {
 
-        #Path of track mods
-        $contentpath="$ac_install_path\content\tracks"
-        $modtype="Track"
+        content_track
 
     }
     
     if ($car -eq $true) {
 
-        #Path of car mods
-        $contentpath="$ac_install_path\content\cars"
-        $modtype="Car"
+        content_car
+
     }
 
     if ($name -ne "") {
@@ -101,51 +128,53 @@ function Get-ACMod {
 
     }
 
-ForEach ($file in $files) {
+ForEach ($global:file in $files) {
 
-        $dirname = $file.directory.name
+        $global:dirname = $file.directory.name
 
-        $content = (Get-Content -path $contentpath\$dirname\$file).split("=")
-
+        $global:content = (Get-Content -path $contentpath\$dirname\$file).split("=")
 
         try {
 
-            $version = $content[1].trim()
-            $comment = $content[3].trim()
+            $global:version = $content[1]
+            $global:comment = $content[3]
 
             if ($content[5] -like "*racedepartment*") {
 
-                $url = $content[5].trim()
+                $global:url = $content[5]
 
             }
+
             else {
 
-                $url = ""
+                $global:url = ""
 
             }
 
-            $rd_version = $content[7].trim()
-            $rd_last_updated = $content[9].trim()
-            $last_update_check = $content[11].trim()
+            $global:rd_version = $content[7]
+            $global:rd_last_updated = $content[9]
+            $global:last_update_check = $content[11]
 
         }
+
         catch {
         
             write-host `n"Invalid $modtype mod.txt found in mod directory $contentpath\$dirname, no information will be shown for this mod." -ForegroundColor Red
             break
 
         }
-
+       
         if ($check_updates) {
 
-            if (([datetime]$last_update_check -lt (get-date).AddHours(-1)) -or ($override_check_limit -eq $true)) {
+            if (($last_update_check -eq "") -or ([datetime]$last_update_check -lt (get-date).AddHours(-1)) -or ($override_check_limit -eq $true)) {
 
                 if ($url -ne "") {
 
+                    write-host `n"Checking Race Deparment for changes..."
                     $webresponse = invoke-webrequest -uri $url
-                    $rd_version = ($WebResponse.AllElements | where {$_.TagName -eq "span" -and $_.class -eq "muted"}).innerText[0]
-                    $rd_last_updated = ($WebResponse.AllElements | where {$_.TagName -eq "dl" -and $_.class -eq "lastUpdate"}).innerText.substring(12)
-                    $last_update_check = Get-Date
+                    $global:rd_version = ($WebResponse.AllElements | where {$_.TagName -eq "span" -and $_.class -eq "muted"}).innerText[0]
+                    $global:rd_last_updated = ($WebResponse.AllElements | where {$_.TagName -eq "dl" -and $_.class -eq "lastUpdate"}).innerText.substring(12)
+                    $global:last_update_check = Get-Date
 
                 }
 
@@ -179,23 +208,17 @@ ForEach ($file in $files) {
         $hash | Add-Member -Type NoteProperty -name "RD URL" -Value $url
         $hash | Add-Member -Type NoteProperty -name "Last Update Check" -Value $last_update_check
 
-        $hash_to_mod_file=@(
-        "version=$version"
-        "comment=$comment"
-        "url=$url"
-        "RD Version=$rd_version"
-        "RD Last Updated=$rd_last_updated"
-        "Last Update Check=$last_update_check") | Out-File $contentpath\$dirname\$file
+        output_modfile
         
         $table += $hash
 
-        $version = ""
-        $comment = ""
-        $webresponse = ""
-        $url = ""
-        $rd_version = ""
-        $rd_last_updated = ""
-        $last_update_check = ""
+#        $version = ""
+#        $comment = ""
+#        $webresponse = ""
+#        $url = ""
+#        $rd_version = ""
+#        $rd_last_updated = ""
+#        $last_update_check = ""
 
                     
     }
@@ -204,8 +227,16 @@ ForEach ($file in $files) {
 
     if ($export -eq $true) {
 
-        $table | Export-Csv $export_path\AC-Mods-Export.csv -notype
-        write-host `n"Exported values to $export_path\AC-Mods-Export.csv" -ForegroundColor Green
+        try {
+
+            $table | Export-Csv $export_path\AC-Mods-Export.csv -notype
+            write-host `n"Exported values to $export_path\AC-Mods-Export.csv" -ForegroundColor Green
+        }
+        catch {
+
+            write-host `n"$_.Exception.Message" -ForegroundColor Red
+
+        }
 
     }
     
@@ -224,39 +255,47 @@ function New-ACMod {
                
     )
 
+    install_path_validation
+
     if ($track -eq $true) {
 
-        #Path of track mods
-        $contentpath="$ac_install_path\content\tracks"
+        content_track
 
     }
     
     if ($car -eq $true) {
 
-        #Path of car mods
-        $contentpath="$ac_install_path\content\cars"
+        content_car
+
     }
-
-
+    
     #Get only Directory Names specified in the param that contain mod.txt file
     $directories = Get-ChildItem $contentpath -Directory | where {$_.Name -like "*$name*"}
    
     if ($directories.count -lt 1) {
     
         write-host `n"Unable to find any directories with the name $name"
-
-        $directories.Name
-
     
     }
     elseif ($directories.count -eq 1) {
 
-        $title = 'Create Mod File'
-        $prompt = 'Found directory called ' + $directories.Name +', do you want to create mod.txt file here, [Y]es or [N]o?'
-        $promptyes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes','Creates the mod.txt'
-        $promptno = New-Object System.Management.Automation.Host.ChoiceDescription '&No','Doesnt create mod.txt'
-        $options = [System.Management.Automation.Host.ChoiceDescription[]] ($promptyes,$promptno)
-        $choice = $host.ui.PromptForChoice($title,$prompt,$options,0)
+        $modfile = Get-ChildItem $directories.FullName -filter "mod.txt" -recurse
+
+        if ($modfile) {
+
+            write-host `n"mod.txt file already exists in mod directory $directories.FullName" -ForegroundColor Yellow
+
+        }
+        else {
+
+            $title = 'Create Mod File'
+            $prompt = 'Found directory called ' + $directories.Name +', do you want to create mod.txt file here, [Y]es or [N]o?'
+            $promptyes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes','Creates the mod.txt'
+            $promptno = New-Object System.Management.Automation.Host.ChoiceDescription '&No','Doesnt create mod.txt'
+            $options = [System.Management.Automation.Host.ChoiceDescription[]] ($promptyes,$promptno)
+            $choice = $host.ui.PromptForChoice($title,$prompt,$options,0)
+
+        }
 
     }
     elseif ($directories.count -gt 1) {
@@ -276,8 +315,140 @@ function New-ACMod {
         "url=$url"
         "RD Version="
         "RD Last Updated="
-        "Last Update Check=") | Out-File $directories\mod.txt
+        "Last Update Check=") | Out-File $contentpath\$directories\mod.txt
 
     }
 
 }
+
+function Set-ACMod {
+
+    Param(
+
+        [Parameter(ParameterSetName='track',Mandatory=$true,Position=0)][switch]$track,
+        [Parameter(ParameterSetName='car',Mandatory=$true,Position=0)][switch]$car,
+        [Parameter(ParameterSetName='track',Mandatory=$true,Position=1)][Parameter(ParameterSetName='car',Mandatory=$true,Position=1)][string]$name,
+        [Parameter(ParameterSetName='track')][Parameter(ParameterSetName='car')][string]$version,
+        [Parameter(ParameterSetName='track')][Parameter(ParameterSetName='car')][string]$comment,
+        [Parameter(ParameterSetName='track')][Parameter(ParameterSetName='car')][string]$url
+               
+    )
+
+    install_path_validation
+
+    if ($track -eq $true) {
+
+        content_track
+
+    }
+    
+    if ($car -eq $true) {
+
+        content_car
+
+    }
+
+    #Get only Directory Names specified in the param that contain mod.txt file
+    $directories = Get-ChildItem $contentpath -filter "mod.txt" -recurse | where {$_.DirectoryName -like "*$name*"}
+
+    if ($directories.count -lt 1) {
+    
+        write-host `n"Unable to find any directories with the name $name"
+    
+    }
+
+    elseif ($directories.count -eq 1) {
+        
+        $dirname = $directories.directory.name
+        $file = $directories.name 
+
+        if ((!$version) -and (!$comment) -and (!$url)) {
+
+            write-host `n"No changes provided, mod file for $dirname will not be updated." -ForegroundColor Yellow
+
+        }
+
+        else {
+        
+            $content = (Get-Content -path $contentpath\$dirname\$file).split("=")
+
+            try {
+
+                $prev_version = $content[1]
+                $prev_comment = $content[3]
+
+                if ($content[5] -like "*racedepartment*") {
+
+                    $prev_url = $content[5]
+
+                }
+                else {
+
+                    $prev_url = ""
+
+                }
+
+                $rd_version = $content[7]
+                $rd_last_updated = $content[9]
+                $last_update_check = $content[11]
+
+                if (!$version) {
+            
+                    $version = $prev_version
+
+                }
+
+                if (!$comment) {
+            
+                    $comment = $prev_comment
+
+                }
+
+                if (!$url) {
+                
+                    $url = $prev_url
+
+                }
+
+            }
+            catch {
+        
+                write-host `n"Invalid $modtype mod.txt found in mod directory $contentpath\$dirname, unable to update mod file for this mod." -ForegroundColor Red
+                break
+
+            }
+
+            write-host "version=$version"
+            write-host "comment=$comment" 
+            write-host "url=$url"
+
+
+            $title = "Update Mod File - " + $modtype + " - " + $dirname + ""
+            $prompt = "The following information will written to the mod file for " + $modtype + " mod " + $dirname + ":`n`nVersion: " + $version + "`nComment: " + $comment + "`nURL: " + $url + "`n`nDo you want to continue, [Y]es or [N]o?"
+            $promptyes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes','Updates the mod.txt'
+            $promptno = New-Object System.Management.Automation.Host.ChoiceDescription '&No','Doesnt Update the mod.txt'
+            $options = [System.Management.Automation.Host.ChoiceDescription[]] ($promptyes,$promptno)
+            $choice = $host.ui.PromptForChoice($title,$prompt,$options,0)
+
+        }
+    }
+
+    elseif ($directories.count -gt 1) {
+
+        write-host `n"Found more than one directory with the name $name"
+
+        $directories.Name
+
+    }
+
+    if ($choice -eq 0) {
+
+        output_modfile    
+
+    }
+
+}
+
+Export-ModuleMember -function Get-ACMod
+Export-ModuleMember -function New-ACMod
+Export-ModuleMember -function Set-ACMod
