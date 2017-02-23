@@ -1,7 +1,7 @@
 # Assetto Corsa Mod Tracker
 PowerShell Module to output the current version of Track and Car mods installed and compare them to Race Department.
 
-Current Release Version: 0.6
+Current Release Version: 0.6.1
 
 ![Assetto Corsa Mod Tracker Output](https://raw.githubusercontent.com/eximo84/Assetto-Corsa-Mod-Tracker/master/Screenshots/ACModTracker-Output.PNG)
 
